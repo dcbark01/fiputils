@@ -29,7 +29,7 @@ pub fn fip_to_name(counties: &[County], fips: &str) -> Option<String> {
     }
 }
 
-pub fn point_to_fip<'a>(counties: &'a [County], lat: f64, lon: f64) -> Option<&'a str> {
+pub fn point_to_fip(counties: &[County], lat: f64, lon: f64) -> Option<&str> {
     let point = Point::new(lon, lat);
     counties
         .iter()

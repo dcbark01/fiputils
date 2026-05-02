@@ -80,10 +80,10 @@ fn find_shp_file(dir: &Path) -> Option<PathBuf> {
 fn ensure_shapefile() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let dir = cache_dir();
 
-    if dir.exists() {
-        if let Some(shp) = find_shp_file(&dir) {
-            return Ok(shp);
-        }
+    if dir.exists()
+        && let Some(shp) = find_shp_file(&dir)
+    {
+        return Ok(shp);
     }
 
     fs::create_dir_all(&dir)?;
@@ -171,7 +171,10 @@ fn main() {
                 None => die("point does not fall within any county"),
             }
         }
-        Command::ExportStates { output, include_territories } => {
+        Command::ExportStates {
+            output,
+            include_territories,
+        } => {
             let file = fs::File::create(&output)
                 .unwrap_or_else(|e| die(&format!("could not create '{}': {e}", output.display())));
             let mut writer = io::BufWriter::new(file);
@@ -179,7 +182,10 @@ fn main() {
             // Collect one row per state, deduplicated by 2-digit prefix.
             let mut seen = std::collections::HashSet::new();
             let mut count = 0;
-            for c in counties.iter().filter(|c| include_territories || !county::is_territory(&c.state)) {
+            for c in counties
+                .iter()
+                .filter(|c| include_territories || !county::is_territory(&c.state))
+            {
                 let state_code = &c.fips[..2];
                 if !seen.insert(state_code.to_string()) {
                     continue;
@@ -197,7 +203,10 @@ fn main() {
             }
             eprintln!("Exported {count} states to '{}'", output.display());
         }
-        Command::ExportCounties { output, include_territories } => {
+        Command::ExportCounties {
+            output,
+            include_territories,
+        } => {
             let file = fs::File::create(&output)
                 .unwrap_or_else(|e| die(&format!("could not create '{}': {e}", output.display())));
             let mut writer = io::BufWriter::new(file);
@@ -219,7 +228,11 @@ fn main() {
                 )
                 .unwrap_or_else(|e| die(&e.to_string()));
             }
-            eprintln!("Exported {} counties to '{}'", filtered.len(), output.display());
+            eprintln!(
+                "Exported {} counties to '{}'",
+                filtered.len(),
+                output.display()
+            );
         }
     }
 }
