@@ -150,6 +150,13 @@ static STATE_NAMES: &[(&str, &str)] = &[
     ("MH", "Marshall Islands"),
 ];
 
+const TERRITORIES: &[&str] = &["GU", "PR", "VI", "AS", "MP", "PW", "FM", "MH"];
+
+pub fn is_territory(abbrev: &str) -> bool {
+    let upper = abbrev.to_uppercase();
+    TERRITORIES.iter().any(|&t| t == upper)
+}
+
 pub fn state_full_name(abbrev: &str) -> Option<&'static str> {
     let upper = abbrev.to_uppercase();
     STATE_NAMES

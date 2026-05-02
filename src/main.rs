@@ -1,7 +1,7 @@
 mod county;
 mod lookup;
 
-use std::io;
+use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
 use std::{fs, process};
 
@@ -37,6 +37,24 @@ enum Command {
         /// Point as "lat,lon" (e.g. 30.2672,-97.7431).
         #[arg(allow_hyphen_values = true)]
         point: String,
+    },
+    /// Export all state FIPS codes to a CSV file.
+    ExportStates {
+        /// Output file path.
+        #[arg(short, long, default_value = "fips_states.csv")]
+        output: PathBuf,
+        /// Include US territories (e.g. Puerto Rico, Guam).
+        #[arg(long)]
+        include_territories: bool,
+    },
+    /// Export all county FIPS codes to a CSV file.
+    ExportCounties {
+        /// Output file path.
+        #[arg(short, long, default_value = "fips_counties.csv")]
+        output: PathBuf,
+        /// Include US territories (e.g. Puerto Rico, Guam).
+        #[arg(long)]
+        include_territories: bool,
     },
 }
 
@@ -85,6 +103,14 @@ fn ensure_shapefile() -> Result<PathBuf, Box<dyn std::error::Error>> {
     archive.extract(&dir)?;
 
     find_shp_file(&dir).ok_or_else(|| "no .shp file found in downloaded archive".into())
+}
+
+fn csv_field(s: &str) -> String {
+    if s.contains([',', '"', '\n']) {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
 }
 
 fn parse_point(s: &str) -> Result<(f64, f64), String> {
@@ -144,6 +170,56 @@ fn main() {
                 Some(fips) => println!("{fips}"),
                 None => die("point does not fall within any county"),
             }
+        }
+        Command::ExportStates { output, include_territories } => {
+            let file = fs::File::create(&output)
+                .unwrap_or_else(|e| die(&format!("could not create '{}': {e}", output.display())));
+            let mut writer = io::BufWriter::new(file);
+            writeln!(writer, "code,name,abbreviation").unwrap_or_else(|e| die(&e.to_string()));
+            // Collect one row per state, deduplicated by 2-digit prefix.
+            let mut seen = std::collections::HashSet::new();
+            let mut count = 0;
+            for c in counties.iter().filter(|c| include_territories || !county::is_territory(&c.state)) {
+                let state_code = &c.fips[..2];
+                if !seen.insert(state_code.to_string()) {
+                    continue;
+                }
+                let state_name = county::state_full_name(&c.state).unwrap_or(&c.state);
+                writeln!(
+                    writer,
+                    "{},{},{}",
+                    state_code,
+                    csv_field(state_name),
+                    csv_field(&c.state)
+                )
+                .unwrap_or_else(|e| die(&e.to_string()));
+                count += 1;
+            }
+            eprintln!("Exported {count} states to '{}'", output.display());
+        }
+        Command::ExportCounties { output, include_territories } => {
+            let file = fs::File::create(&output)
+                .unwrap_or_else(|e| die(&format!("could not create '{}': {e}", output.display())));
+            let mut writer = io::BufWriter::new(file);
+            writeln!(writer, "code,name,state,abbreviation")
+                .unwrap_or_else(|e| die(&e.to_string()));
+            let filtered: Vec<_> = counties
+                .iter()
+                .filter(|c| include_territories || !county::is_territory(&c.state))
+                .collect();
+            for c in &filtered {
+                let state_name = county::state_full_name(&c.state).unwrap_or(&c.state);
+                writeln!(
+                    writer,
+                    "{},{},{},{}",
+                    c.fips,
+                    csv_field(&c.county_name),
+                    csv_field(state_name),
+                    csv_field(&c.state)
+                )
+                .unwrap_or_else(|e| die(&e.to_string()));
+            }
+            eprintln!("Exported {} counties to '{}'", filtered.len(), output.display());
         }
     }
 }
