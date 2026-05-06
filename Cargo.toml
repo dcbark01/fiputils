@@ -2,6 +2,10 @@
 name = "fiputils"
 version = "0.1.0"
 edition = "2024"
+description = "A CLI tool for looking up US county FIPS codes (name, FIPS, or lat/lon)."
+repository = "https://github.com/dcbark01/fiputils"
+license = "MIT"
+readme = "README.md"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
